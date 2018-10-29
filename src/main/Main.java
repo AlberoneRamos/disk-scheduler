@@ -6,6 +6,6 @@ public class Main {
 
     public static void main(String[] args) {
         DiskScheduler scheduler = new DiskScheduler();
-        scheduler.SCAN("./diskRequests.txt");
+        scheduler.executeAllMethods("./diskRequests.txt");
     }
 }
