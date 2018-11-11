@@ -13,7 +13,7 @@ import java.util.stream.Stream;
 public class DiskScheduler {
     private int numSectors;
     private int numTracks;
-    private final static String OUTPUT_PATH = "./output.txt";
+    private final static String OUTPUT_PATH = "./out.txt";
     private int startPosition;
     private List<DiskRequest> diskRequests;
 
