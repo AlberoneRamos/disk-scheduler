@@ -5,7 +5,9 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.List;
 import java.util.stream.Stream;
 
 public class DiskScheduler {
@@ -13,18 +15,18 @@ public class DiskScheduler {
     private int numTracks;
     private final static String OUTPUT_PATH = "./output.txt";
     private int startPosition;
-    private RequestQueue<DiskRequest> diskRequests;
+    private List<DiskRequest> diskRequests;
 
     public DiskScheduler(String filePath) {
         this();
         this.initializeData(filePath);
     }
 
-    public DiskScheduler() {
+    private DiskScheduler() {
         this.numSectors = 0;
         this.numTracks = 0;
         this.startPosition = 0;
-        this.diskRequests = new RequestQueue<>();
+        this.diskRequests = new ArrayList<>();
         try {
             new PrintWriter(OUTPUT_PATH).close();
         } catch (FileNotFoundException e) {
@@ -58,19 +60,26 @@ public class DiskScheduler {
         }
     }
 
-    public void firstComeFirstServed(String filePath) {
-        initializeData(filePath);
+    private List<DiskRequest> cloneRequestQueue() {
+        List<DiskRequest> clone = new ArrayList<>();
+        for (DiskRequest request : this.diskRequests)
+            clone.add(request);
+        return clone;
+    }
+
+    public void firstComeFirstServed() {
+        List<DiskRequest> diskRequests = cloneRequestQueue();
         int elapsedTime = 0;
         float totalAccessTime = 0;
         float totalWaitingTime = 0;
         DecimalFormat decimal = new DecimalFormat("#.##");
-        int lastLatency = 0;
+        int lastLatency = startPosition;
         int numRequests = diskRequests.size();
         while (!diskRequests.isEmpty()) {
             for (int i = 0; i < diskRequests.size(); i++) {
                 int currentAccessTime = diskRequests.get(i).getAccessTime(lastLatency);
                 if (elapsedTime >= diskRequests.get(i).getArrivalTime()) {
-                    //System.out.println(diskRequests.get(i) + " - " + currentAccessTime + " - " + Math.abs(totalAccessTime - diskRequests.get(i).getArrivalTime()) + " " + i);
+                    System.out.println(diskRequests.get(i) + " - " + currentAccessTime + " - " + totalAccessTime + " - " + Math.abs(totalAccessTime - diskRequests.get(i).getArrivalTime()));
                     elapsedTime += currentAccessTime;
                     totalWaitingTime = totalWaitingTime + Math.abs(totalAccessTime - diskRequests.get(i).getArrivalTime());
                     totalAccessTime += currentAccessTime;
@@ -88,35 +97,27 @@ public class DiskScheduler {
         this.writeData(OUTPUT_PATH, "FCFS", totalAccessTime / numRequests, totalWaitingTime / numRequests);
     }
 
-
-    public void scan(String filePath) {
-        initializeData(filePath);
+    public void scan() {
+        List<DiskRequest> diskRequests = cloneRequestQueue();
         int elapsedTime = 0;
         float totalAccessTime = 0;
         float totalWaitingTime = 0;
-        int lastLatency = 0;
+        int lastLatency = startPosition;
         int numRequests = diskRequests.size();
         DecimalFormat decimal = new DecimalFormat("#.##");
         diskRequests.sort(Comparator.naturalOrder());
-        for (int i = 0; i < diskRequests.size(); i++) {
-            int currentAccessTime = diskRequests.get(i).getAccessTime(lastLatency);
-            if (elapsedTime >= diskRequests.get(i).getArrivalTime() && diskRequests.get(i).getLatency() >= this.startPosition) {
-                elapsedTime += currentAccessTime;
-                totalWaitingTime += Math.abs(totalAccessTime - diskRequests.get(i).getArrivalTime());
-                totalAccessTime += currentAccessTime;
-                lastLatency = diskRequests.get(i).getLatency();
-                diskRequests.remove(i);
-                i--;
-            }
-            if (elapsedTime == 0)
-                elapsedTime++;
-        }
+        boolean isReturning = false;
         while (!diskRequests.isEmpty()) {
             int i;
             int currentAccessTime = 0;
             for (i = 0; i < diskRequests.size(); i++) {
-                currentAccessTime = diskRequests.get(i).getAccessTime(lastLatency);
-                if (elapsedTime >= diskRequests.get(i).getArrivalTime() && diskRequests.get(i).getLatency() >= 0) {
+                if (elapsedTime >= diskRequests.get(i).getArrivalTime() && diskRequests.get(i).getLatency() >= lastLatency) {
+                    if (isReturning) {
+                        currentAccessTime = diskRequests.get(i).getSeekTime() + diskRequests.get(i).getTransferTime() + lastLatency + diskRequests.get(i).getLatency();
+                        isReturning = false;
+                    } else
+                        currentAccessTime = diskRequests.get(i).getAccessTime(lastLatency);
+                    System.out.println(diskRequests.get(i) + " - " + currentAccessTime + " - " + totalAccessTime + " - " + Math.abs(totalAccessTime - diskRequests.get(i).getArrivalTime()));
                     elapsedTime += currentAccessTime;
                     totalWaitingTime += Math.abs(totalAccessTime - diskRequests.get(i).getArrivalTime());
                     totalAccessTime += currentAccessTime;
@@ -126,11 +127,15 @@ public class DiskScheduler {
                 }
             }
             i--;
-            if (!diskRequests.isEmpty())
-                totalAccessTime += ((this.numSectors - currentAccessTime) + (this.numSectors - diskRequests.get(i).getLatency()));
+            if (!diskRequests.isEmpty()) isReturning = true;
             for (; i > -1; i--) {
-                currentAccessTime = diskRequests.get(i).getAccessTime(lastLatency);
-                if (elapsedTime >= diskRequests.get(i).getArrivalTime() && this.numSectors >= diskRequests.get(i).getLatency()) {
+                if (elapsedTime >= diskRequests.get(i).getArrivalTime() && diskRequests.get(i).getLatency() <= lastLatency) {
+                    if (isReturning) {
+                        currentAccessTime = ((this.numSectors - lastLatency) + (this.numSectors - diskRequests.get(i).getLatency())) + diskRequests.get(i).getSeekTime() + diskRequests.get(i).getTransferTime();
+                        isReturning = false;
+                    } else
+                        currentAccessTime = diskRequests.get(i).getAccessTime(lastLatency);
+                    System.out.println(diskRequests.get(i) + " - " + currentAccessTime + " - " + totalAccessTime + " - " + Math.abs(totalAccessTime - diskRequests.get(i).getArrivalTime()));
                     elapsedTime += currentAccessTime;
                     totalWaitingTime = totalWaitingTime + Math.abs(totalAccessTime - diskRequests.get(i).getArrivalTime());
                     totalAccessTime += currentAccessTime;
@@ -139,6 +144,10 @@ public class DiskScheduler {
                     i++;
                 }
             }
+            i++;
+            if (!diskRequests.isEmpty()) isReturning = true;
+            if (elapsedTime == 0)
+                elapsedTime++;
         }
         System.out.println("SCAN" + System.lineSeparator()
                 + "-AccessTime=" + decimal.format(totalAccessTime / numRequests) + System.lineSeparator()
@@ -158,8 +167,8 @@ public class DiskScheduler {
         }
     }
 
-    public void executeAllMethods(String filePath) {
-        this.firstComeFirstServed(filePath);
-        this.scan(filePath);
+    public void executeAllMethods() {
+        this.firstComeFirstServed();
+        this.scan();
     }
 }

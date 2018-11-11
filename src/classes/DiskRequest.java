@@ -7,7 +7,7 @@ public class DiskRequest implements Comparable<DiskRequest> {
     private int seekTime;
     private int transferTime;
 
-    public DiskRequest(String requestName, int arrivalTime, int latency, int seekTime, int transferTime) {
+    DiskRequest(String requestName, int arrivalTime, int latency, int seekTime, int transferTime) {
         this.requestName = requestName;
         this.arrivalTime = arrivalTime;
         this.latency = latency;
@@ -15,7 +15,16 @@ public class DiskRequest implements Comparable<DiskRequest> {
         this.transferTime = transferTime;
     }
 
-    public String getRequestName() {
+    DiskRequest(DiskRequest request) {
+        this.requestName = request.getRequestName();
+        this.arrivalTime = request.getArrivalTime();
+        this.latency = request.getLatency();
+        this.seekTime = request.getSeekTime();
+        this.transferTime = request.getTransferTime();
+    }
+
+
+    String getRequestName() {
         return requestName;
     }
 
@@ -23,11 +32,11 @@ public class DiskRequest implements Comparable<DiskRequest> {
         this.requestName = requestName;
     }
 
-    public int getAccessTime(int lastRequestLatency) {
+    int getAccessTime(int lastRequestLatency) {
         return Math.abs(latency - lastRequestLatency) + seekTime + transferTime;
     }
 
-    public int getArrivalTime() {
+    int getArrivalTime() {
         return arrivalTime;
     }
 
@@ -35,7 +44,7 @@ public class DiskRequest implements Comparable<DiskRequest> {
         this.arrivalTime = arrivalTime;
     }
 
-    public int getLatency() {
+    int getLatency() {
         return latency;
     }
 
@@ -43,7 +52,7 @@ public class DiskRequest implements Comparable<DiskRequest> {
         this.latency = latency;
     }
 
-    public int getSeekTime() {
+    int getSeekTime() {
         return seekTime;
     }
 
@@ -51,7 +60,7 @@ public class DiskRequest implements Comparable<DiskRequest> {
         this.seekTime = seekTime;
     }
 
-    public int getTransferTime() {
+    int getTransferTime() {
         return transferTime;
     }
 
