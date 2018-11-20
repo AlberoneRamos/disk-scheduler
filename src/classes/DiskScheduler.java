@@ -5,10 +5,11 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.text.DecimalFormat;
+import java.text.NumberFormat;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Stream;
 
 public class DiskScheduler {
@@ -63,8 +64,7 @@ public class DiskScheduler {
 
     private List<DiskRequest> cloneRequestQueue() {
         List<DiskRequest> clone = new ArrayList<>();
-        for (DiskRequest request : this.diskRequests)
-            clone.add(request);
+        clone.addAll(this.diskRequests);
         return clone;
     }
 
@@ -73,7 +73,6 @@ public class DiskScheduler {
         int elapsedTime = 0;
         float totalAccessTime = 0;
         float totalWaitingTime = 0;
-        DecimalFormat decimal = new DecimalFormat("#.##");
         int lastLatency = startPosition;
         int numRequests = diskRequests.size();
         while (!diskRequests.isEmpty()) {
@@ -90,9 +89,6 @@ public class DiskScheduler {
                 }
             }
         }
-        System.out.println("FCFS" + System.lineSeparator()
-                + "-AccessTime=" + decimal.format(totalAccessTime / numRequests) + System.lineSeparator()
-                + "-WaitingTime=" + decimal.format(totalWaitingTime / numRequests));
         this.writeData(OUTPUT_PATH, "FCFS", totalAccessTime / numRequests, totalWaitingTime / numRequests);
     }
 
@@ -103,7 +99,6 @@ public class DiskScheduler {
         float totalWaitingTime = 0;
         int lastLatency = startPosition;
         int numRequests = diskRequests.size();
-        DecimalFormat decimal = new DecimalFormat("#.##");
         diskRequests.sort(Comparator.naturalOrder());
         boolean isReturning = false;
         int numOfRequests;
@@ -150,9 +145,6 @@ public class DiskScheduler {
             if (numOfRequests == diskRequests.size())
                 elapsedTime++;
         }
-        System.out.println("SCAN" + System.lineSeparator()
-                + "-AccessTime=" + decimal.format(totalAccessTime / numRequests) + System.lineSeparator()
-                + "-WaitingTime=" + decimal.format(totalWaitingTime / numRequests));
         this.writeData(OUTPUT_PATH, "SCAN", totalAccessTime / numRequests, totalWaitingTime / numRequests);
     }
 
@@ -163,7 +155,6 @@ public class DiskScheduler {
         float totalWaitingTime = 0;
         int lastLatency = startPosition;
         int numRequests = diskRequests.size();
-        DecimalFormat decimal = new DecimalFormat("#.##");
         diskRequests.sort(Comparator.naturalOrder());
         boolean isReturning = false;
         int currentAccessTime = 0;
@@ -192,9 +183,6 @@ public class DiskScheduler {
                 lastLatency = 0;
             }
         }
-        System.out.println("C-SCAN" + System.lineSeparator()
-                + "-AccessTime=" + decimal.format(totalAccessTime / numRequests) + System.lineSeparator()
-                + "-WaitingTime=" + decimal.format(totalWaitingTime / numRequests));
         this.writeData(OUTPUT_PATH, "C-SCAN", totalAccessTime / numRequests, totalWaitingTime / numRequests);
     }
 
@@ -205,7 +193,6 @@ public class DiskScheduler {
         float totalWaitingTime = 0;
         int lastLatency = startPosition;
         int numRequests = diskRequests.size();
-        DecimalFormat decimal = new DecimalFormat("#.##");
         diskRequests.sort(Comparator.naturalOrder());
         boolean isReturning = false;
         int currentAccessTime = 0;
@@ -218,57 +205,60 @@ public class DiskScheduler {
                     totalWaitingTime += Math.abs(totalAccessTime - diskRequests.get(i).getArrivalTime());
                     totalAccessTime += currentAccessTime;
                     lastLatency = diskRequests.get(i).getLatency();
+//                    System.out.println(diskRequests.get(i) + " - " + currentAccessTime + " - " + totalAccessTime + " - " + totalWaitingTime);
                     diskRequests.remove(i);
                     i--;
                 }
             }
             if (!diskRequests.isEmpty()) {
-                currentAccessTime = diskRequests.get(0).getAccessTime(lastLatency);
+                int j = 0;
+                while (diskRequests.get(j).getArrivalTime() > elapsedTime && j < diskRequests.size())
+                    j++;
+                currentAccessTime = diskRequests.get(j).getAccessTime(lastLatency);
                 elapsedTime += currentAccessTime;
-                totalWaitingTime += Math.abs(totalAccessTime - diskRequests.get(0).getArrivalTime());
+                totalWaitingTime += Math.abs(totalAccessTime - diskRequests.get(j).getArrivalTime());
                 totalAccessTime += currentAccessTime;
-                lastLatency = diskRequests.get(0).getLatency();
-                diskRequests.remove(0);
+                lastLatency = diskRequests.get(j).getLatency();
+//                System.out.println(diskRequests.get(j) + " - " + currentAccessTime + " - " + totalAccessTime + " - " + totalWaitingTime);
+                diskRequests.remove(j);
                 i--;
             }
         }
-        System.out.println("C-LOOK" + System.lineSeparator()
-                + "-AccessTime=" + decimal.format(totalAccessTime / numRequests) + System.lineSeparator()
-                + "-WaitingTime=" + decimal.format(totalWaitingTime / numRequests));
         this.writeData(OUTPUT_PATH, "C-LOOK", totalAccessTime / numRequests, totalWaitingTime / numRequests);
     }
 
     public void shortestSeekTimeFirst() {
-        List<DiskRequest> diskRequests = diskRequestsByProximity();
+        List<DiskRequest> diskRequests = cloneRequestQueue();
         int elapsedTime = 0;
         float totalAccessTime = 0;
         float totalWaitingTime = 0;
         int numRequests = diskRequests.size();
-        DecimalFormat decimal = new DecimalFormat("#.##");
         int lastLatency = startPosition;
         while (!diskRequests.isEmpty()) {
-            for (int i = 0; i < diskRequests.size(); i++) {
-                int currentAccessTime = diskRequests.get(i).getAccessTime(lastLatency);
-                if (elapsedTime >= diskRequests.get(i).getArrivalTime()) {
-//                    System.out.println(diskRequests.get(i) + " - " + currentAccessTime + " - " + totalAccessTime + " - " + Math.abs(totalAccessTime - diskRequests.get(i).getArrivalTime()));
-                    elapsedTime += currentAccessTime;
-                    totalWaitingTime = totalWaitingTime + Math.abs(totalAccessTime - diskRequests.get(i).getArrivalTime());
-                    totalAccessTime += currentAccessTime;
-                    lastLatency = diskRequests.get(i).getLatency();
-                    diskRequests.remove(i);
-                    i--;
-                }
+            int i = 0;
+            i = getNearestPos(lastLatency, elapsedTime, diskRequests);
+            int currentAccessTime = diskRequests.get(i).getAccessTime(lastLatency);
+            if (elapsedTime >= diskRequests.get(i).getArrivalTime()) {
+//                System.out.println(diskRequests.get(i) + " - " + currentAccessTime + " - " + totalAccessTime + " - " + Math.abs(totalAccessTime - diskRequests.get(i).getArrivalTime()));
+                elapsedTime += currentAccessTime;
+                totalWaitingTime = totalWaitingTime + Math.abs(totalAccessTime - diskRequests.get(i).getArrivalTime());
+                totalAccessTime += currentAccessTime;
+                lastLatency = diskRequests.get(i).getLatency();
+                diskRequests.remove(i);
             }
         }
-        System.out.println("SSTF" + System.lineSeparator()
-                + "-AccessTime=" + decimal.format(totalAccessTime / numRequests) + System.lineSeparator()
-                + "-WaitingTime=" + decimal.format(totalWaitingTime / numRequests));
         this.writeData(OUTPUT_PATH, "SSTF", totalAccessTime / numRequests, totalWaitingTime / numRequests);
         diskRequests.forEach(System.out::println);
     }
 
     private void writeData(String filePath, String schedulingMethodName, float avgAccessTime, float avgNumRequests) {
-        DecimalFormat decimal = new DecimalFormat("#.##");
+        NumberFormat nf = NumberFormat.getNumberInstance(Locale.US);
+        DecimalFormat decimal = (DecimalFormat) nf;
+        decimal.setMaximumFractionDigits(2);
+
+        System.out.println(schedulingMethodName + System.lineSeparator()
+                + "-AccessTime=" + decimal.format(avgAccessTime) + System.lineSeparator()
+                + "-WaitingTime=" + decimal.format(avgNumRequests));
         try (BufferedWriter writer = Files.newBufferedWriter(Paths.get(filePath), StandardOpenOption.APPEND)) {
             writer.write(schedulingMethodName + System.lineSeparator());
             writer.write("-AccessTime=" + decimal.format(avgAccessTime) + System.lineSeparator());
@@ -279,23 +269,21 @@ public class DiskScheduler {
         }
     }
 
-    public List<DiskRequest> diskRequestsByProximity() {
-        var diskRequests = cloneRequestQueue();
-        int lastPosition = startPosition;
+    public int getNearestPos(int position, int elapsedTime, List<DiskRequest> diskRequests) {
         int closestRequest = 0;
         int closestPosition = Integer.MAX_VALUE;
         for (int i = 0; i < diskRequests.size(); i++) {
-            for (int j = i; j < diskRequests.size(); j++) {
-                if (Math.abs(diskRequests.get(j).getLatency() - lastPosition) < closestPosition) {
-                    closestRequest = j;
-                    closestPosition = Math.abs(diskRequests.get(j).getLatency() - lastPosition);
+            if (diskRequests.get(i).getArrivalTime() < elapsedTime) {
+                if (Math.abs(diskRequests.get(i).getLatency() - position) < closestPosition) {
+                    closestRequest = i;
+                    closestPosition = Math.abs(diskRequests.get(i).getLatency() - position);
+                } else if (Math.abs(diskRequests.get(i).getLatency() - position) == closestPosition) {
+                    if (diskRequests.get(i).getLatency() > diskRequests.get(closestRequest).getLatency())
+                        closestRequest = i;
                 }
             }
-            lastPosition = diskRequests.get(closestRequest).getLatency();
-            Collections.swap(diskRequests, i, closestRequest);
-            closestPosition = Integer.MAX_VALUE;
         }
-        return diskRequests;
+        return closestRequest;
     }
 
     public void lastComeFirstServed() {
@@ -319,9 +307,6 @@ public class DiskScheduler {
                 }
             }
         }
-        System.out.println("MY" + System.lineSeparator()
-                + "-AccessTime=" + decimal.format(totalAccessTime / numRequests) + System.lineSeparator()
-                + "-WaitingTime=" + decimal.format(totalWaitingTime / numRequests));
         this.writeData(OUTPUT_PATH, "MY", totalAccessTime / numRequests, totalWaitingTime / numRequests);
     }
 
