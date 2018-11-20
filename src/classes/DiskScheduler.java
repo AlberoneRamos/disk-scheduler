@@ -5,7 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.text.DecimalFormat;
-import java.text.NumberFormat;
+import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -252,8 +252,10 @@ public class DiskScheduler {
     }
 
     private void writeData(String filePath, String schedulingMethodName, float avgAccessTime, float avgNumRequests) {
-        NumberFormat nf = NumberFormat.getNumberInstance(Locale.US);
-        DecimalFormat decimal = (DecimalFormat) nf;
+        DecimalFormatSymbols formatSymbols = new DecimalFormatSymbols(Locale.getDefault());
+        formatSymbols.setDecimalSeparator('.');
+        formatSymbols.setGroupingSeparator(',');
+        DecimalFormat decimal = new DecimalFormat("#.00", formatSymbols);
         decimal.setMaximumFractionDigits(2);
 
         System.out.println(schedulingMethodName + System.lineSeparator()
