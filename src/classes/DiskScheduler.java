@@ -316,7 +316,6 @@ public class DiskScheduler {
                     totalAccessTime += currentAccessTime;
                     lastLatency = diskRequests.get(i).getLatency();
                     diskRequests.remove(i);
-                    i--;
                 }
             }
         }
