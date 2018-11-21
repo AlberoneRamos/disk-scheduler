@@ -2,6 +2,7 @@ package classes;
 
 import java.io.*;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.text.DecimalFormat;
@@ -15,7 +16,6 @@ import java.util.stream.Stream;
 public class DiskScheduler {
     private int numSectors;
     private int numTracks;
-    private final static String OUTPUT_PATH = "./out.txt";
     private int startPosition;
     private List<DiskRequest> diskRequests;
 
@@ -24,16 +24,16 @@ public class DiskScheduler {
         this.initializeData(filePath);
     }
 
-    private DiskScheduler() {
+    public DiskScheduler() {
         this.numSectors = 0;
         this.numTracks = 0;
         this.startPosition = 0;
         this.diskRequests = new ArrayList<>();
-        try {
-            new PrintWriter(OUTPUT_PATH).close();
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
+        File directory = new File("output/");
+        File[] files = directory.listFiles();
+        if (files != null)
+            for (File file : files)
+                if (!file.delete()) System.out.println("Failed to delete " + file);
     }
 
     private void initializeData(String filePath) {
@@ -68,7 +68,7 @@ public class DiskScheduler {
         return clone;
     }
 
-    public void firstComeFirstServed() {
+    public void firstComeFirstServed(String fileName) {
         List<DiskRequest> diskRequests = cloneRequestQueue();
         int elapsedTime = 0;
         float totalAccessTime = 0;
@@ -89,10 +89,10 @@ public class DiskScheduler {
                 }
             }
         }
-        this.writeData(OUTPUT_PATH, "FCFS", totalAccessTime / numRequests, totalWaitingTime / numRequests);
+        this.writeData(fileName, "FCFS", totalAccessTime / numRequests, totalWaitingTime / numRequests);
     }
 
-    public void scan() {
+    public void scan(String fileName) {
         List<DiskRequest> diskRequests = cloneRequestQueue();
         int elapsedTime = 0;
         float totalAccessTime = 0;
@@ -145,10 +145,10 @@ public class DiskScheduler {
             if (numOfRequests == diskRequests.size())
                 elapsedTime++;
         }
-        this.writeData(OUTPUT_PATH, "SCAN", totalAccessTime / numRequests, totalWaitingTime / numRequests);
+        this.writeData(fileName, "SCAN", totalAccessTime / numRequests, totalWaitingTime / numRequests);
     }
 
-    public void cScan() {
+    public void cScan(String fileName) {
         List<DiskRequest> diskRequests = cloneRequestQueue();
         int elapsedTime = 0;
         float totalAccessTime = 0;
@@ -183,10 +183,10 @@ public class DiskScheduler {
                 lastLatency = 0;
             }
         }
-        this.writeData(OUTPUT_PATH, "C-SCAN", totalAccessTime / numRequests, totalWaitingTime / numRequests);
+        this.writeData(fileName, "C-SCAN", totalAccessTime / numRequests, totalWaitingTime / numRequests);
     }
 
-    public void cLook() {
+    public void cLook(String fileName) {
         List<DiskRequest> diskRequests = cloneRequestQueue();
         int elapsedTime = 0;
         float totalAccessTime = 0;
@@ -224,10 +224,10 @@ public class DiskScheduler {
                 i--;
             }
         }
-        this.writeData(OUTPUT_PATH, "C-LOOK", totalAccessTime / numRequests, totalWaitingTime / numRequests);
+        this.writeData(fileName, "C-LOOK", totalAccessTime / numRequests, totalWaitingTime / numRequests);
     }
 
-    public void shortestSeekTimeFirst() {
+    public void shortestSeekTimeFirst(String fileName) {
         List<DiskRequest> diskRequests = cloneRequestQueue();
         int elapsedTime = 0;
         float totalAccessTime = 0;
@@ -247,29 +247,37 @@ public class DiskScheduler {
                 diskRequests.remove(i);
             }
         }
-        this.writeData(OUTPUT_PATH, "SSTF", totalAccessTime / numRequests, totalWaitingTime / numRequests);
+        this.writeData(fileName, "SSTF", totalAccessTime / numRequests, totalWaitingTime / numRequests);
         diskRequests.forEach(System.out::println);
     }
 
-    private void writeData(String filePath, String schedulingMethodName, float avgAccessTime, float avgNumRequests) {
+    private void writeData(String fileName, String schedulingMethodName, float avgAccessTime, float avgNumRequests) {
         DecimalFormatSymbols formatSymbols = new DecimalFormatSymbols(Locale.getDefault());
         formatSymbols.setDecimalSeparator('.');
         formatSymbols.setGroupingSeparator(',');
         DecimalFormat decimal = new DecimalFormat("#.00", formatSymbols);
         decimal.setMaximumFractionDigits(2);
-
-        System.out.println(schedulingMethodName + System.lineSeparator()
-                + "-AccessTime=" + decimal.format(avgAccessTime) + System.lineSeparator()
-                + "-WaitingTime=" + decimal.format(avgNumRequests));
-        try (BufferedWriter writer = Files.newBufferedWriter(Paths.get(filePath), StandardOpenOption.APPEND)) {
-            writer.write(schedulingMethodName + System.lineSeparator());
-            writer.write("-AccessTime=" + decimal.format(avgAccessTime) + System.lineSeparator());
-            writer.write("-WaitingTime=" + decimal.format(avgNumRequests) + System.lineSeparator());
-            System.out.println("Escrito com sucesso em " + Paths.get(filePath));
+        Path filePath = Paths.get("output/" + fileName);
+        try {
+            // Make sure the directories exist
+            Files.createDirectories(filePath.getParent());  // No need for your null check, so I removed it; based on `fileName`, it will always have a parent
+            System.out.println(schedulingMethodName + System.lineSeparator()
+                    + "-AccessTime=" + decimal.format(avgAccessTime) + System.lineSeparator()
+                    + "-WaitingTime=" + decimal.format(avgNumRequests));
+            try (BufferedWriter writer = Files.newBufferedWriter(filePath, StandardOpenOption.CREATE,
+                    StandardOpenOption.APPEND)) {
+                writer.write(schedulingMethodName + System.lineSeparator());
+                writer.write("-AccessTime=" + decimal.format(avgAccessTime) + System.lineSeparator());
+                writer.write("-WaitingTime=" + decimal.format(avgNumRequests) + System.lineSeparator());
+                System.out.println("Escrito com sucesso em " + Paths.get(fileName));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
+
 
     public int getNearestPos(int position, int elapsedTime, List<DiskRequest> diskRequests) {
         int closestRequest = 0;
@@ -288,7 +296,7 @@ public class DiskScheduler {
         return closestRequest;
     }
 
-    public void lastComeFirstServed() {
+    public void lastComeFirstServed(String fileName) {
         List<DiskRequest> diskRequests = cloneRequestQueue();
         int elapsedTime = 0;
         float totalAccessTime = 0;
@@ -309,15 +317,19 @@ public class DiskScheduler {
                 }
             }
         }
-        this.writeData(OUTPUT_PATH, "MY", totalAccessTime / numRequests, totalWaitingTime / numRequests);
+        this.writeData(fileName, "MY", totalAccessTime / numRequests, totalWaitingTime / numRequests);
     }
 
-    public void executeAllMethods() {
-        this.firstComeFirstServed();
-        this.shortestSeekTimeFirst();
-        this.scan();
-        this.cScan();
-        this.cLook();
-        this.lastComeFirstServed();
+    public void changeInputData(String filePath) {
+        this.initializeData(filePath);
+    }
+
+    public void executeAllMethods(String fileName) {
+        this.firstComeFirstServed(fileName);
+        this.shortestSeekTimeFirst(fileName);
+        this.scan(fileName);
+        this.cScan(fileName);
+        this.cLook(fileName);
+        this.lastComeFirstServed(fileName);
     }
 }
