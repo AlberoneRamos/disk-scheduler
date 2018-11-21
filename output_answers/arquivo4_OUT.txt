@@ -1,0 +1,15 @@
+FCFS
+-AccessTime=42.87
+-WaitingTime=106.00
+SSTF
+-AccessTime=28.62
+-WaitingTime=62.12
+SCAN
+-AccessTime=68.37
+-WaitingTime=327.87
+C-SCAN
+-AccessTime=101.87
+-WaitingTime=519.12
+C-LOOK
+-AccessTime=42.37
+-WaitingTime=161.62
