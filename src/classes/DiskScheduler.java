@@ -1,6 +1,7 @@
 package classes;
 
 import java.io.*;
+import java.math.RoundingMode;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -256,6 +257,7 @@ public class DiskScheduler {
         formatSymbols.setDecimalSeparator('.');
         formatSymbols.setGroupingSeparator(',');
         DecimalFormat decimal = new DecimalFormat("#.00", formatSymbols);
+        decimal.setRoundingMode(RoundingMode.DOWN);
         decimal.setMaximumFractionDigits(2);
         Path filePath = Paths.get("output/"+fileName);
         try {
@@ -321,6 +323,7 @@ public class DiskScheduler {
     }
 
     public void changeInputData(String filePath){
+    	diskRequests = new ArrayList<DiskRequest>();
         this.initializeData(filePath);
     }
 
