@@ -321,6 +321,7 @@ public class DiskScheduler {
     }
 
     public void changeInputData(String filePath) {
+        this.diskRequests = new ArrayList<DiskRequest>();
         this.initializeData(filePath);
     }
 
