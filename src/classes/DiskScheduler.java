@@ -1,6 +1,7 @@
 package classes;
 
 import java.io.*;
+import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -251,26 +252,31 @@ public class DiskScheduler {
         this.writeData(fileName, "SSTF", totalAccessTime / numRequests, totalWaitingTime / numRequests);
         diskRequests.forEach(System.out::println);
     }
-
-    private void writeData(String fileName, String schedulingMethodName, double avgAccessTime, double avgWaitingTime) {
-    	DecimalFormatSymbols formatSymbols = new DecimalFormatSymbols(Locale.getDefault());
-        formatSymbols.setDecimalSeparator('.');
-        formatSymbols.setGroupingSeparator(',');
-        DecimalFormat decimal = new DecimalFormat("#.00", formatSymbols);
-        decimal.setRoundingMode(RoundingMode.DOWN);
-        decimal.setMaximumFractionDigits(2);
+    
+    public String  truncateValue(float value) {
+		String valueString = Float.toString(value);
+		valueString.replaceAll("\\.", ",");
+		int i;
+		for (i = 0; i < valueString.length() && valueString.charAt(i) != '.'; i++);
+		if(valueString.length()-1-i < 2)
+			valueString += "0";
+		else valueString = valueString.substring(0, i+3);
+		return valueString;
+	}
+    
+    private void writeData(String fileName, String schedulingMethodName, float avgAccessTime, float avgWaitingTime) {
         Path filePath = Paths.get("output/"+fileName);
         try {
             // Make sure the directories exist
             Files.createDirectories(filePath.getParent());  // No need for your null check, so I removed it; based on `fileName`, it will always have a parent
             System.out.println(schedulingMethodName + System.lineSeparator()
-                    + "-AccessTime=" + decimal.format(avgAccessTime) + System.lineSeparator()
-                    + "-WaitingTime=" + decimal.format(avgWaitingTime));
+                    + "-AccessTime=" + this.truncateValue(avgAccessTime) + System.lineSeparator()
+                    + "-WaitingTime=" + this.truncateValue(avgWaitingTime));
             try (BufferedWriter writer = Files.newBufferedWriter(filePath, StandardOpenOption.CREATE,
                     StandardOpenOption.APPEND)) {
                 writer.write(schedulingMethodName + System.lineSeparator());
-                writer.write("-AccessTime=" + decimal.format(avgAccessTime) + System.lineSeparator());
-                writer.write("-WaitingTime=" + decimal.format(avgWaitingTime) + System.lineSeparator());
+                writer.write("-AccessTime=" + this.truncateValue(avgAccessTime) + System.lineSeparator());
+                writer.write("-WaitingTime=" + this.truncateValue(avgWaitingTime) + System.lineSeparator());
                 System.out.println("Escrito com sucesso em " + Paths.get(fileName));
             } catch (IOException e) {
                 e.printStackTrace();
