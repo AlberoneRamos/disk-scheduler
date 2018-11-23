@@ -252,8 +252,8 @@ public class DiskScheduler {
         diskRequests.forEach(System.out::println);
     }
 
-    private void writeData(String fileName, String schedulingMethodName, float avgAccessTime, float avgNumRequests) {
-        DecimalFormatSymbols formatSymbols = new DecimalFormatSymbols(Locale.getDefault());
+    private void writeData(String fileName, String schedulingMethodName, double avgAccessTime, double avgWaitingTime) {
+    	DecimalFormatSymbols formatSymbols = new DecimalFormatSymbols(Locale.getDefault());
         formatSymbols.setDecimalSeparator('.');
         formatSymbols.setGroupingSeparator(',');
         DecimalFormat decimal = new DecimalFormat("#.00", formatSymbols);
@@ -265,12 +265,12 @@ public class DiskScheduler {
             Files.createDirectories(filePath.getParent());  // No need for your null check, so I removed it; based on `fileName`, it will always have a parent
             System.out.println(schedulingMethodName + System.lineSeparator()
                     + "-AccessTime=" + decimal.format(avgAccessTime) + System.lineSeparator()
-                    + "-WaitingTime=" + decimal.format(avgNumRequests));
+                    + "-WaitingTime=" + decimal.format(avgWaitingTime));
             try (BufferedWriter writer = Files.newBufferedWriter(filePath, StandardOpenOption.CREATE,
                     StandardOpenOption.APPEND)) {
                 writer.write(schedulingMethodName + System.lineSeparator());
                 writer.write("-AccessTime=" + decimal.format(avgAccessTime) + System.lineSeparator());
-                writer.write("-WaitingTime=" + decimal.format(avgNumRequests) + System.lineSeparator());
+                writer.write("-WaitingTime=" + decimal.format(avgWaitingTime) + System.lineSeparator());
                 System.out.println("Escrito com sucesso em " + Paths.get(fileName));
             } catch (IOException e) {
                 e.printStackTrace();
